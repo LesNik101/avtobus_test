@@ -267,4 +267,23 @@
   height: 70px;
   display: flex;
   align-items: center;
+  justify-content: space-between;
+}
+
+.list-group-item > .contact-name {
+  opacity: 0.5;
+}
+
+.list-group-item > .action-and-phone {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 24px;
+}
+
+.list-group-item > .action-and-phone > .action-block {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
 }

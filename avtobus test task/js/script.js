@@ -1,10 +1,12 @@
 let mode = "group"
+let contactID = ""
 
 document.getElementById("add_contact_action_button").onclick = function () {
   mode = "contacts"
+  contactID = ""
   document.getElementById("add_new_group").classList.add("hidden")
-  const groups = getGroups()
-  if (groups.length) {
+  const groups = getContacts()
+  if (Object.keys(groups).length) {
     openSidebar()
     drawContactForm(groups)
   }
@@ -21,11 +23,7 @@ function createInputElement({ placeholder = "", value = "", id = "" } = {}) {
   return inputElement
 }
 
-function createGroupSelect() {
-  //
-}
-
-function drawContactForm(groups, contact) {
+function drawContactForm(groups, contact, groupID) {
   clearSidebar()
   const sidebar_content = document.getElementById("sidebar_content")
   const inputName = createInputElement({
@@ -33,28 +31,40 @@ function drawContactForm(groups, contact) {
     id: "input_name",
     value: contact ? contact.name : "",
   })
+  const maskOptionsName = {
+    mask: /^[a-zA-ZА-Яа-я][a-za-zA-ZА-Яа-я\s]*$/,
+  }
+  new IMask(inputName, maskOptionsName)
   sidebar_content.appendChild(inputName)
   const inputPhone = createInputElement({
     placeholder: "Введите номер",
     id: "input_phone",
     value: contact ? contact.phone : "",
   })
+  const maskOptionsPhone = {
+    mask: "+{7}(000)000-00-00",
+  }
+  new IMask(inputPhone, maskOptionsPhone)
+
   sidebar_content.appendChild(inputPhone)
 
   const defaultOption = document.createElement("option")
   defaultOption.setAttribute("selected", "")
   defaultOption.setAttribute("disabled", "")
+  defaultOption.setAttribute("value", "")
   defaultOption.innerText = "Выберите группу"
   const groupSelect = document.createElement("select")
   groupSelect.classList.add("form-select")
   groupSelect.setAttribute("placeholder", "выберите группу")
   groupSelect.appendChild(defaultOption)
-  for (let group of groups) {
+  for (let groupId in groups) {
     const option = document.createElement("option")
-    option.setAttribute("value", group)
-    option.innerText = group
+    option.setAttribute("value", groupId)
+    option.innerText = groups[groupId].name
     groupSelect.appendChild(option)
   }
+
+  groupSelect.value = groupID ? groupID : ""
   groupSelect.setAttribute("id", "group_select")
   sidebar_content.appendChild(groupSelect)
 }
@@ -63,19 +73,15 @@ document.getElementById("add_group_action_button").onclick = function () {
   mode = "group"
   document.getElementById("add_new_group").classList.remove("hidden")
   openSidebar()
-  const groups = getGroups()
-  if (groups.length) {
-    drawGroups(groups)
+  const contacts = getContacts()
+  if (contacts && Object.keys(contacts).length) {
+    drawGroups(contacts)
   }
 }
 
 function openSidebar() {
   const element = document.getElementById("add_container")
   element.classList.remove("hidden")
-}
-
-function getGroups() {
-  return JSON.parse(localStorage.getItem("groups"))
 }
 
 function closeSidebar() {
@@ -91,39 +97,9 @@ function clearSidebar() {
 }
 
 function drawGroups(groups) {
-  const sidebar_content = document.getElementById("sidebar_content")
   clearSidebar()
-  for (let group of groups) {
-    const input = createInputElement({
-      placeholder: "Введите название",
-      value: group,
-    })
-
-    const img = document.createElement("img")
-    img.setAttribute("src", "img/svg/Delete.svg")
-
-    const button = document.createElement("button")
-    button.classList.add("btn", "btn-outline-danger", "btn-icon")
-    button.setAttribute(
-      "onmouseover",
-      "setSrc(this, 'img/svg/DeleteWhite.svg');"
-    )
-    button.setAttribute("onmouseout", "setSrc(this, 'img/svg/Delete.svg');")
-    button.appendChild(img)
-    button.onclick = function (event) {
-      const value =
-        event.currentTarget.parentNode.getElementsByTagName("input")[0].value
-      removeGroup(value)
-      document
-        .getElementById("sidebar_content")
-        .removeChild(event.currentTarget.parentNode)
-    }
-
-    const groupItem = document.createElement("div")
-    groupItem.classList.add("group-item")
-    groupItem.appendChild(input)
-    groupItem.appendChild(button)
-    sidebar_content.appendChild(groupItem)
+  for (let groupId in groups) {
+    createGroupItem({ id: groupId, name: groups[groupId].name })
   }
 }
 
@@ -132,20 +108,33 @@ document.getElementById("add_container_close").onclick = function () {
 }
 
 document.getElementById("add_new_group").onclick = function () {
-  const input = document.createElement("input")
-  input.classList.add("form-control")
-  input.setAttribute("placeholder", "Введите название") //
+  createGroupItem()
+}
+
+function createGroupItem({ id = crypto.randomUUID(), name = "" } = {}) {
+  const input = createInputElement({
+    placeholder: "Введите название",
+    value: name,
+  })
 
   const img = document.createElement("img")
   img.setAttribute("src", "img/svg/Delete.svg")
   const button = document.createElement("button")
   button.classList.add("btn", "btn-outline-danger", "btn-icon")
-  button.setAttribute("onmouseover", "setSrc(this, 'img/svg/DeleteWhite.svg');") //
+  button.setAttribute("onmouseover", "setSrc(this, 'img/svg/DeleteWhite.svg');")
   button.setAttribute("onmouseout", "setSrc(this, 'img/svg/Delete.svg');")
+  button.onclick = (function (id) {
+    return function () {
+      removeGroup(id)
+      const currentGroupItem = document.getElementById(id)
+      document.getElementById("sidebar_content").removeChild(currentGroupItem)
+    }
+  })(id)
   button.appendChild(img)
 
   const groupItem = document.createElement("div")
   groupItem.classList.add("group-item")
+  groupItem.setAttribute("id", id)
   groupItem.appendChild(input)
   groupItem.appendChild(button)
   document.getElementById("sidebar_content").appendChild(groupItem)
@@ -157,7 +146,6 @@ function setSrc(element, path) {
 }
 
 document.getElementById("save_sidebar_action_button").onclick = function () {
-  console.log("save")
   if (mode === "group") {
     saveGroups()
   }
@@ -167,52 +155,92 @@ document.getElementById("save_sidebar_action_button").onclick = function () {
 }
 
 function saveGroups() {
-  localStorage.removeItem("groups")
-  const inputs = document.getElementsByTagName("input")
-  const groups = Array.from(inputs)
-    .map(({ value }) => value)
-    .filter((value) => value)
-  localStorage.setItem("groups", JSON.stringify(groups))
+  const itemGroupList = document.getElementsByClassName("group-item")
+  const groupsForSave = Array.from(itemGroupList)
+    .map((groupItem) => {
+      return {
+        id: groupItem.id,
+        name: groupItem.getElementsByTagName("input")[0].value,
+      }
+    })
+    .filter(({ name }) => name)
+  const oldContacts = getContacts()
+  const newContacts = {}
+  groupsForSave.forEach((group) => {
+    newContacts[group.id] = {
+      name: group.name,
+      contacts:
+        oldContacts && oldContacts[group.id]?.contacts
+          ? oldContacts[group.id]?.contacts
+          : [],
+    }
+  })
+  setContacts(newContacts)
   closeSidebar()
 }
 
-function searchGroup(element) {}
-function removeGroup(value) {
-  let groups = JSON.parse(localStorage.getItem("groups"))
-  groups = groups.filter((x) => x !== value)
-  ////todo remove contacts
-  localStorage.removeItem("groups")
-  localStorage.setItem("groups", JSON.stringify(groups))
+function removeGroup(groupId) {
+  let groups = getContacts()
+  delete groups[groupId]
+  setContacts(groups)
+}
+
+function removeContact(groupID, contactID) {
+  const contacts = getContacts()
+  contacts[groupID].contacts = contacts[groupID].contacts.filter(
+    ({ id }) => id !== contactID
+  )
+  setContacts(contacts)
 }
 
 function saveContact() {
   const name = document.getElementById("input_name").value
   const phone = document.getElementById("input_phone").value
   const group = document.getElementById("group_select").value
-  let contacts = getContacts()
-  if (contacts) {
-    if (contacts[group]) {
-      contacts[group].push({ name, phone, group })
-    } else {
-      contacts[group] = [{ name, phone, group }]
-    }
-  } else {
-    contacts = {}
-    contacts[group] = [{ name, phone, group }]
+  if (!name || !phone || phone.length !== 16 || !group) {
+    return
   }
+  let contacts = getContacts()
+  if (contactID === "") {
+    ///new contact
+    contacts[group].contacts.push({ id: crypto.randomUUID(), name, phone })
+  } else {
+    const oldContact = contacts[group].contacts.find(
+      ({ id }) => id === contactID
+    )
+    if (oldContact) {
+      ////contact in old group
+      ;[oldContact.name, oldContact.phone] = [name, phone]
+    } else {
+      ///contact switched group
+      for (let groupID in contacts) {
+        contacts[groupID].contacts = contacts[groupID].contacts.filter(
+          ({ id }) => id !== contactID
+        )
+      }
+      contacts[group].contacts.push({
+        id: contactID,
+        name,
+        phone,
+      })
+    }
+  }
+
   setContacts(contacts)
+  closeSidebar()
 }
 
 function getContacts() {
   return JSON.parse(localStorage.getItem("contacts"))
 }
 function setContacts(contacts) {
+  localStorage.clear("contacts")
   localStorage.setItem("contacts", JSON.stringify(contacts))
   updateContactList()
 }
 function updateContactList() {
   const contacts = getContacts()
-  if (Object.keys(contacts).length) {
+  if (contacts && Object.keys(contacts).length) {
     document.getElementById("empty_list").classList.add("hidden")
     drawContactList(contacts)
   }
@@ -222,15 +250,71 @@ updateContactList()
 
 function drawContactList(contacts) {
   const contentContainer = document.getElementById("content")
-  for (let groupName of Object.keys(contacts)) {
-    const currentIndex = Object.keys(contacts).indexOf(groupName)
+  contentContainer.innerHTML = ""
+  for (let groupId in contacts) {
+    const currentIndex = Object.keys(contacts).indexOf(groupId)
 
     const contactContainer = document.createElement("ul")
     contactContainer.classList.add("list-group", "list-group-flush")
-    contacts[groupName].forEach((contact) => {
+    contacts[groupId].contacts.forEach((contact) => {
       const listItem = document.createElement("li")
       listItem.classList.add("list-group-item")
-      listItem.innerText = contact.name
+      const nameSpan = document.createElement("span")
+      nameSpan.classList.add("contact-name")
+      nameSpan.innerText = contact.name
+      listItem.appendChild(nameSpan)
+      const actionAndPhoneBlock = document.createElement("div")
+      actionAndPhoneBlock.classList.add("action-and-phone")
+      const phoneSpan = document.createElement("span")
+      phoneSpan.innerText = contact.phone
+      actionAndPhoneBlock.appendChild(phoneSpan)
+      const actionBlock = document.createElement("div")
+      actionBlock.classList.add("action-block")
+
+      const editImg = document.createElement("img")
+      editImg.setAttribute("src", "img/svg/Edit.svg")
+      const editButton = document.createElement("button")
+      editButton.classList.add("btn", "btn-outline-primary", "btn-icon")
+      editButton.setAttribute(
+        "onmouseover",
+        "setSrc(this, 'img/svg/EditWhite.svg');"
+      )
+      editButton.setAttribute("onmouseout", "setSrc(this, 'img/svg/Edit.svg');")
+      editButton.onclick = (function (contact, groupId) {
+        return function () {
+          mode = "contacts"
+          contactID = contact.id
+          document.getElementById("add_new_group").classList.add("hidden")
+          openSidebar()
+          drawContactForm(getContacts(), contact, groupId)
+        }
+      })(contact, groupId)
+      editButton.appendChild(editImg)
+
+      const deleteImg = document.createElement("img")
+      deleteImg.setAttribute("src", "img/svg/Delete.svg")
+      const deleteButton = document.createElement("button")
+      deleteButton.classList.add("btn", "btn-outline-danger", "btn-icon")
+      deleteButton.setAttribute(
+        "onmouseover",
+        "setSrc(this, 'img/svg/DeleteWhite.svg');"
+      )
+      deleteButton.setAttribute(
+        "onmouseout",
+        "setSrc(this, 'img/svg/Delete.svg');"
+      )
+      deleteButton.onclick = (function (groupID, contactID) {
+        return function () {
+          removeContact(groupID, contactID)
+        }
+      })(groupId, contact.id)
+      deleteButton.appendChild(deleteImg)
+
+      actionBlock.appendChild(editButton)
+      actionBlock.appendChild(deleteButton)
+      actionAndPhoneBlock.appendChild(actionBlock)
+
+      listItem.appendChild(actionAndPhoneBlock)
       contactContainer.appendChild(listItem)
     })
 
@@ -252,7 +336,7 @@ function drawContactList(contacts) {
     button.setAttribute("data-bs-target", `#collapse${currentIndex}`)
     button.setAttribute("aria-expanded", "false")
     button.setAttribute("aria-controls", `collapse${currentIndex}`)
-    button.innerText = groupName
+    button.innerText = contacts[groupId].name
 
     const header = document.createElement("h2")
     header.setAttribute("id", `header${currentIndex}`)
