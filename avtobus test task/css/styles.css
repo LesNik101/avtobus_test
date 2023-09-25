@@ -287,3 +287,59 @@
   align-items: center;
   gap: 8px;
 }
+
+@media (max-width: 1440px) {
+  .container__action-panel {
+    padding: 0 280px;
+  }
+
+  .container__content.content {
+    padding: 56px 280px;
+  }
+}
+
+@media (max-width: 1200px) {
+  .container__action-panel {
+    padding: 0 180px;
+  }
+
+  .container__content.content {
+    padding: 56px 180px;
+  }
+}
+
+@media (max-width: 960px) {
+  .container__action-panel {
+    padding: 0 80px;
+  }
+
+  .container__content.content {
+    padding: 56px 80px;
+  }
+}
+
+@media (max-width: 640px) {
+  .container__action-panel {
+    padding: 0 20px;
+  }
+
+  .container__content.content {
+    padding: 36px 20px;
+  }
+
+  .add-container > .add-container__sidebar.sidebar {
+    width: 100%;
+  }
+
+  .list-group-item {
+    padding: 10px 0px;
+    flex-direction: column;
+    height: auto;
+    gap: 10px;
+  }
+
+  .list-group-item > .action-and-phone {
+    flex-direction: column;
+    gap: 10px;
+  }
+}
